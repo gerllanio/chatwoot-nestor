@@ -1,10 +1,9 @@
-# #
-# # This action will publish Chatwoot CE docker image.
-# # This is set to run against merges to develop, master
-# # and when tags are created.
-# #
+# ===============================================================
+# Chatwoot Nestor - Build e Publicação no GHCR (GitHub Container Registry)
+# Adaptado por Gerllanio - GTI Tecnologia da Informação
+# ===============================================================
 
-name: Publish Chatwoot CE docker images for AMD64
+name: Publish Chatwoot Nestor Docker image to GHCR
 
 on:
   push:
@@ -19,32 +18,29 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      IMAGE_NAME: wkarts/hub
+      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/chatwoot-nestor
       GIT_REF: ${{ github.head_ref || github.ref_name }}
-      
+
     steps:
+      # 📦 Checkout do código-fonte
       - name: Checkout
         uses: actions/checkout@v4
 
-#      - name: Cache Yarn
-#        uses: actions/cache@v3
-#        with:
-#          path: /yarn-cache
-#          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-#          restore-keys: |
-#            ${{ runner.os }}-yarn-
-
+      # 🧱 Ajuste de build (mantido do original)
       - name: Make custom changes
         run: |
-          sed -i 's/"name": "Teste"/"name": "🅷🆄🅱"/g' public/manifest.json
-          sed -i 's/"short_name": "Teste"/"short_name": "🅷🆄🅱"/g' public/manifest.json
+          sed -i 's/"name": "Teste"/"name": "Chatwoot Nestor"/g' public/manifest.json
+          sed -i 's/"short_name": "Teste"/"short_name": "CWN"/g' public/manifest.json
 
+      # 🧰 Configura QEMU (para build multi-plataforma)
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3.2.0
+        uses: docker/setup-qemu-action@v3
 
+      # 🧱 Configura Docker Buildx
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.6.1
+        uses: docker/setup-buildx-action@v3
 
+      # 🏷️ Gera tags automáticas (para develop, master e versões)
       - name: Set up Docker tags
         id: docker_tag
         run: |
@@ -53,14 +49,17 @@ jobs:
             echo "LATEST_TAG=${IMAGE_NAME}:latest" >> $GITHUB_ENV
           fi
 
-      - name: Login to DockerHub
-        uses: docker/login-action@v3.3.0
+      # 🔐 Login no GitHub Container Registry (GHCR)
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
+      # 🏗️ Build e Push da imagem (amd64)
       - name: Build and push amd64 image
-        uses: docker/build-push-action@v6.5.0
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile
@@ -70,4 +69,8 @@ jobs:
             ${{ env.TAGS }}
             ${{ env.LATEST_TAG }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max            
+          cache-to: type=gha,mode=max
+
+      # ✅ Log de conclusão
+      - name: Done
+        run: echo "✅ Imagem publicada com sucesso em ${{ env.IMAGE_NAME }}"
